@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>근로장려금 신청 계산기</title>
+  <style>
+    body { font-family: 'Noto Sans KR', sans-serif; max-width: 600px; margin: 30px auto; padding: 20px; border: 1px solid #ccc; border-radius: 10px; }
+    h2 { color: #2b00fe; }
+    label { display: block; margin-top: 15px; }
+    input, select { width: 100%; padding: 8px; margin-top: 5px; }
+    button { margin-top: 20px; padding: 10px; background-color: #2b00fe; color: white; border: none; border-radius: 5px; cursor: pointer; }
+    #result { margin-top: 25px; font-size: 18px; font-weight: bold; }
+    #definition { margin-top: 10px; font-size: 14px; color: #555; }
+    .inline { display: none; }
+  </style>
+</head>
+<body>
+  <h2>근로장려금 신청 가능 여부 및 예상 수령액</h2>
+
+  <label for="familyType">가구 유형을 선택하세요:</label>
+  <select id="familyType" onchange="updateDefinition()">
+    <option value="단독가구">단독가구</option>
+    <option value="홑벌이가구">홑벌이가구</option>
+    <option value="맞벌이가구">맞벌이가구</option>
+  </select>
+  <div id="definition">단독가구: 배우자와 부양 자녀가 없고, 70세 이상의 직계존속이 없는 1인 가구입니다.</div>
+
+  <div id="singleIncomeSection">
+    <label for="income">연소득 (만원):</label>
+    <input type="number" id="income" placeholder="예: 2100" />
+  </div>
+
+  <div id="dualIncomeSection" class="inline">
+    <label for="incomeSelf">본인 연소득 (만원):</label>
+    <input type="number" id="incomeSelf" placeholder="예: 1500" />
+    <label for="incomeSpouse">배우자 연소득 (만원):</label>
+    <input type="number" id="incomeSpouse" placeholder="예: 1700" />
+  </div>
+
+  <label for="assets">재산 총액 (만원):</label>
+  <input type="number" id="assets" placeholder="예: 18000" />
+
+  <button onclick="checkEligibility()">확인하기</button>
+
+  <div id="result"></div>
+
+  <script>
+    function updateDefinition() {
+      const type = document.getElementById('familyType').value;
+      const definition = document.getElementById('definition');
+      const singleIncome = document.getElementById('singleIncomeSection');
+      const dualIncome = document.getElementById('dualIncomeSection');
+
+      if (type === '단독가구') {
+        definition.innerText = '단독가구: 배우자와 부양 자녀가 없고, 70세 이상의 직계존속이 없는 1인 가구입니다.';
+        singleIncome.style.display = 'block';
+        dualIncome.style.display = 'none';
+      } else if (type === '홑벌이가구') {
+        definition.innerText = '1. 홑벌이가구: 배우자나 부양 자녀가 있으나, 한 사람만 소득이 있는 가구입니다.  2. 배우자가 없어도 부양자녀(18세 미만) 또는 70세 이상 직계존속(각각의 연간 소득금액이 100만원 이하이고 주민등록표상 동거가족으로 생계를 같이 할 것)이 있는 가구';
+        singleIncome.style.display = 'block';
+        dualIncome.style.display = 'none';
+      } else if (type === '맞벌이가구') {
+        definition.innerText = '맞벌이가구: 배우자와 본인 모두 일정 수준 이상의 소득이 있는 가구입니다.';
+        singleIncome.style.display = 'none';
+        dualIncome.style.display = 'block';
+      }
+    }
+
+    function checkEligibility() {
+      const familyType = document.getElementById('familyType').value;
+      const assets = parseFloat(document.getElementById('assets').value);
+      let income = 0;
+
+      if (familyType === '맞벌이가구') {
+        const incomeSelf = parseFloat(document.getElementById('incomeSelf').value);
+        const incomeSpouse = parseFloat(document.getElementById('incomeSpouse').value);
+        if (isNaN(incomeSelf) || isNaN(incomeSpouse)) {
+          document.getElementById('result').innerText = '⚠️ 본인과 배우자의 소득을 모두 입력해주세요.';
+          return;
+        }
+        income = incomeSelf + incomeSpouse;
+      } else {
+        income = parseFloat(document.getElementById('income').value);
+        if (isNaN(income)) {
+          document.getElementById('result').innerText = '⚠️ 소득을 입력해주세요.';
+          return;
+        }
+      }
+
+      if (isNaN(assets)) {
+        document.getElementById('result').innerText = '⚠️ 재산을 입력해주세요.';
+        return;
+      }
+
+      if (assets > 20000) {
+        document.getElementById('result').innerText = '❌ 재산이 2억 원(20,000만 원)을 초과하여 신청 불가합니다.';
+        return;
+      }
+
+      let startIncome = 0, endIncome = 0, maxAmount = 0;
+
+      switch (familyType) {
+        case '단독가구':
+          startIncome = 900;
+          endIncome = 2200;
+          maxAmount = 165;
+          break;
+        case '홑벌이가구':
+          startIncome = 1400;
+          endIncome = 3200;
+          maxAmount = 285;
+          break;
+        case '맞벌이가구':
+          startIncome = 1700;
+          endIncome = 4400;
+          maxAmount = 330;
+          break;
+      }
+
+      if (income < startIncome) {
+        document.getElementById('result').innerText = `✅ 신청 가능합니다! 예상 지급액은 약 ${maxAmount}만 원입니다.`;
+      } else if (income >= startIncome && income <= endIncome) {
+        const ratio = 1 - ((income - startIncome) / (endIncome - startIncome));
+        const payment = Math.round(maxAmount * ratio);
+        document.getElementById('result').innerText = `✅ 신청 가능합니다! 예상 지급액은 약 ${payment}만 원입니다.`;
+      } else {
+        document.getElementById('result').innerText = '❌ 소득 기준 초과로 신청이 어려워요.';
+      }
+    }
+
+    window.onload = updateDefinition;
+  </script>
+</body>
+</html>
